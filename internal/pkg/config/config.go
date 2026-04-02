@@ -26,7 +26,7 @@ func Load() (*Config, error) {
 	cfg := &Config{
 		Port:            getEnvInt("PORT", 8080),
 		DatabaseURL:     getEnv("DATABASE_URL", "postgres://postgres:password@localhost:5432/shortener?sslmode=disable"),
-		StorageType:     getEnv("STORAGE_TYPE", "postgres"), // postgres или memory
+		StorageType:     getEnv("STORAGE_TYPE", "memory"), // postgres или memory
 		RedisAddr:       getEnv("REDIS_ADDR", "localhost:6379"),
 		RedisPassword:   getEnv("REDIS_PASSWORD", ""),
 		ShortCodeLength: getEnvInt("SHORT_CODE_LENGTH", 10),

@@ -30,13 +30,14 @@ func main() {
 		slog.Error("failed to load config", "error", err)
 		os.Exit(1)
 	}
-
+	fmt.Println(cfg)
 	logger.Init()
-	slog.Info("starting url shortener", "storage_type", cfg.StorageType)
+	slog.Info("starting url shortener", "storage_type: ", cfg.StorageType)
 
 	//ctx := context.Background()
 
 	if cfg.StorageType != "memory" {
+		fmt.Println(cfg.StorageType)
 		slog.Error("only memory storage supported in this main version")
 		os.Exit(1)
 	}
@@ -45,10 +46,12 @@ func main() {
 	defer repo.Close()
 
 	cache := cache.NewCache()
+	defer cache.Close()
 
 	bloomFilter := bloom.NewBloomFilter(cfg.BloomN, cfg.BloomP)
 
 	rateLimiter := limiter.NewRateLimiter(cfg.RateLimitMax, cfg.RateLimitWindow)
+	defer rateLimiter.Close()
 
 	shortenerService := usecase.NewShortenerService(
 		repo,

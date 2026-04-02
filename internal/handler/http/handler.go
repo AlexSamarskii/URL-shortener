@@ -5,6 +5,7 @@ import (
 	"strconv"
 	"time"
 
+	"url_shortener/internal/entity"
 	"url_shortener/internal/pkg/metrics"
 	"url_shortener/internal/usecase"
 
@@ -47,11 +48,11 @@ func (h *Handler) Shorten(c *gin.Context) {
 	if err != nil {
 		status := http.StatusInternalServerError
 		switch {
-		case err == usecase.ErrURLInvalid:
+		case err == entity.ErrURLInvalid:
 			status = http.StatusBadRequest
-		case err == usecase.ErrAliasExists:
+		case err == entity.ErrAliasExists:
 			status = http.StatusConflict
-		case err == usecase.ErrGenerateCode:
+		case err == entity.ErrGenerateCode:
 			status = http.StatusInternalServerError
 		default:
 			status = http.StatusInternalServerError
@@ -84,9 +85,9 @@ func (h *Handler) Redirect(c *gin.Context) {
 	if err != nil {
 		status := http.StatusInternalServerError
 		switch {
-		case err == usecase.ErrURLNotFound:
+		case err == entity.ErrURLNotFound:
 			status = http.StatusNotFound
-		case err == usecase.ErrURLExpired:
+		case err == entity.ErrURLExpired:
 			status = http.StatusGone
 		default:
 			status = http.StatusInternalServerError

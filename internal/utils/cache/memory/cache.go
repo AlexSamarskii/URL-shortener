@@ -9,6 +9,7 @@ import (
 )
 
 const cleanupPeriod = 1 * time.Minute
+const empty = ""
 
 type item struct {
 	value      string
@@ -47,11 +48,11 @@ func (c *memoryCache) Get(ctx context.Context, key string) (string, error) {
 
 	it, ok := c.data[key]
 	if !ok {
-		return "", entity.ErrNotFound
+		return empty, entity.ErrNotFound
 	}
 	if c.isExpired(&it) {
 		delete(c.data, key)
-		return "", entity.ErrExpired
+		return empty, entity.ErrExpired
 	}
 	return it.value, nil
 }

@@ -1,0 +1,16 @@
+version: '3.8'
+
+services:
+  app:
+    build: .
+    ports:
+      - "8080:8080"
+    environment:
+      - STORAGE_TYPE=memory
+      - PORT=8080
+      - SHORT_CODE_LENGTH=10
+      - RATE_LIMIT_MAX=100
+      - RATE_LIMIT_WINDOW_SEC=60
+      - DOMAIN=http://localhost:8080
+      - ENABLE_METRICS=true
+    # Для in-memory не нужны volumes

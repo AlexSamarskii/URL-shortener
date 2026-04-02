@@ -23,13 +23,7 @@ const (
 	base     = len(alphabet)
 )
 
-var (
-	ErrURLInvalid   = errors.New("invalid URL")
-	ErrAliasExists  = errors.New("alias already exists")
-	ErrURLNotFound  = errors.New("url not found")
-	ErrURLExpired   = errors.New("url expired")
-	ErrGenerateCode = errors.New("failed to generate unique code")
-)
+const defaultCacheTTL = 24 * time.Hour
 
 type ShortenerService struct {
 	repo         repository.Repository
@@ -69,7 +63,7 @@ type ShortenResponse struct {
 
 func (s *ShortenerService) Shorten(ctx context.Context, req ShortenRequest) (*ShortenResponse, error) {
 	if err := validateURL(req.URL); err != nil {
-		return nil, fmt.Errorf("%w: %v", ErrURLInvalid, err)
+		return nil, fmt.Errorf("%w: %v", entity.ErrURLInvalid, err)
 	}
 
 	if req.Alias != nil && *req.Alias != "" {
@@ -97,7 +91,7 @@ func (s *ShortenerService) Shorten(ctx context.Context, req ShortenRequest) (*Sh
 		var err error
 		shortCode, err = s.generateUniqueCode(ctx)
 		if err != nil {
-			return nil, fmt.Errorf("%w: %v", ErrGenerateCode, err)
+			return nil, fmt.Errorf("%w: %v", entity.ErrGenerateCode, err)
 		}
 	}
 
@@ -117,6 +111,12 @@ func (s *ShortenerService) Shorten(ctx context.Context, req ShortenRequest) (*Sh
 		UpdatedAt:   now,
 	}
 	if err := s.repo.CreateURL(ctx, urlRecord); err != nil {
+		if errors.Is(err, entity.ErrAlreadyExists) {
+			if req.Alias != nil && *req.Alias != "" {
+				return nil, entity.ErrAliasExists
+			}
+			return nil, fmt.Errorf("short code already exists: %w", err)
+		}
 		return nil, fmt.Errorf("failed to create URL: %w", err)
 	}
 
@@ -136,7 +136,7 @@ func (s *ShortenerService) Shorten(ctx context.Context, req ShortenRequest) (*Sh
 
 func (s *ShortenerService) GetOriginalURL(ctx context.Context, shortCode string) (string, error) {
 	if !s.bloom.Test([]byte(shortCode)) {
-		return "", ErrURLNotFound
+		return "", entity.ErrURLNotFound
 	}
 
 	cachedURL, err := s.cache.Get(ctx, cacheKey(shortCode))
@@ -150,13 +150,13 @@ func (s *ShortenerService) GetOriginalURL(ctx context.Context, shortCode string)
 	urlRecord, err := s.repo.GetURLByShortCode(ctx, shortCode)
 	if err != nil {
 		if errors.Is(err, entity.ErrNotFound) {
-			return "", ErrURLNotFound
+			return "", entity.ErrURLNotFound
 		}
 		return "", err
 	}
 
 	if urlRecord.ExpiresAt != nil && urlRecord.ExpiresAt.Before(time.Now().UTC()) {
-		return "", ErrURLExpired
+		return "", entity.ErrURLExpired
 	}
 
 	ttl := s.calcTTL(urlRecord.ExpiresAt)
@@ -182,7 +182,7 @@ func (s *ShortenerService) validateAlias(ctx context.Context, alias string) erro
 		return fmt.Errorf("failed to check alias: %w", err)
 	}
 	if exists {
-		return ErrAliasExists
+		return entity.ErrAliasExists
 	}
 	return nil
 }
@@ -199,7 +199,7 @@ func (s *ShortenerService) generateUniqueCode(ctx context.Context) (string, erro
 			return code, nil
 		}
 	}
-	return "", ErrGenerateCode
+	return "", entity.ErrGenerateCode
 }
 
 func generateRandomCode(length int) string {
@@ -226,7 +226,7 @@ func (s *ShortenerService) calcTTL(expiresAt *time.Time) time.Duration {
 			return ttl
 		}
 	}
-	return 365 * 24 * time.Hour
+	return defaultCacheTTL
 }
 
 func validateURL(rawURL string) error {
