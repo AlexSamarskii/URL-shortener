@@ -1,0 +1,39 @@
+http:
+  port: 8080
+  readTimeout: 15s
+  writeTimeout: 15s
+  idleTimeout: 60s
+  enableMetrics: true
+
+storage:
+  type: "postgres"   # postgres или memory
+
+shortener:
+  domain: "http://localhost:8080"
+  codeLength: 10
+
+postgres:
+  host: "localhost"
+  port: "5432"
+  user: "shortener"
+  dbname: "shortener"
+  sslmode: "disable"
+  maxConns: 10
+  connTimeout: 5s
+
+redis:
+  host: "localhost"
+  port: "6379"
+  db: 0
+  dialTimeout: 5s
+  readTimeout: 3s
+  writeTimeout: 3s
+
+rateLimiter:
+  maxRequests: 100
+  window: 60s
+  scriptPath: "scripts/rate_limit.lua"
+
+bloom:
+  expectedItems: 1000000
+  falsePositiveProb: 0.001

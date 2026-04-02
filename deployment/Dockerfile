@@ -1,31 +1,31 @@
-# Build stage
-FROM golang:1.21-alpine AS builder
+FROM golang:1.25-alpine AS builder
 
 WORKDIR /app
 
-# Копируем go.mod и go.sum
 COPY go.mod go.sum ./
+
 RUN go mod download
 
-# Копируем исходный код
 COPY . .
 
-# Сборка бинарника
-RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o url_shortener ./cmd/server
+RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-w -s" -o /server ./cmd/server
 
-# Final stage
-FROM alpine:latest
+RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-w -s" -o /migrate ./cmd/migrate
+
+FROM alpine:3.19
 
 RUN apk --no-cache add ca-certificates
 
-WORKDIR /root/
+WORKDIR /app
 
-# Копируем бинарник из builder
-COPY --from=builder /app/url_shortener .
+COPY --from=builder /server /app/
+COPY --from=builder /migrate /app/
 
-# Копируем конфиг (опционально, можно использовать переменные окружения)
-COPY config.example.yaml ./config.yaml
+COPY .env /app/.env
+COPY configs/config.yaml /app/configs/config.yaml
+COPY scripts/rate_limit.lua /scripts/rate_limit.lua
+COPY migrations /migrations
 
 EXPOSE 8080
 
-CMD ["./url_shortener"]
+CMD ["/app/server"]

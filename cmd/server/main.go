@@ -11,18 +11,24 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
+	"github.com/redis/go-redis/v9"
 
 	handler "url_shortener/internal/handler/http"
-	"url_shortener/internal/midleware"
+	"url_shortener/internal/middleware"
 	"url_shortener/internal/pkg/config"
 	"url_shortener/internal/pkg/logger"
+	"url_shortener/internal/repository"
 	repoMemory "url_shortener/internal/repository/memory"
+	repoPostgres "url_shortener/internal/repository/postgres"
 	"url_shortener/internal/usecase"
 	"url_shortener/internal/utils/bloom"
-	cache "url_shortener/internal/utils/cache/memory"
-	limiter "url_shortener/internal/utils/rate_limiter/memory"
+	cacheRedis "url_shortener/internal/utils/cache/redis"
+	limiterRedis "url_shortener/internal/utils/rate_limiter/redis"
 )
+
+const rateLimitPath = "scripts/rate_limit.lua"
 
 func main() {
 	cfg, err := config.Load()
@@ -30,35 +36,82 @@ func main() {
 		slog.Error("failed to load config", "error", err)
 		os.Exit(1)
 	}
-	fmt.Println(cfg)
+
 	logger.Init()
-	slog.Info("starting url shortener", "storage_type: ", cfg.StorageType)
+	slog.Info("starting url shortener",
+		"storage_type", cfg.Shortener,
+		"port", cfg.HTTP.Port,
+		"enable_metrics", cfg.HTTP.EnableMetrics,
+	)
 
-	//ctx := context.Background()
+	ctx := context.Background()
 
-	if cfg.StorageType != "memory" {
-		fmt.Println(cfg.StorageType)
-		slog.Error("only memory storage supported in this main version")
+	var repo repository.Repository
+	switch cfg.Storage.Type {
+	case "postgres":
+		dbConfig, err := pgxpool.ParseConfig(cfg.Postgres.DSN)
+		if err != nil {
+			slog.Error("failed to parse database url", "error", err)
+			os.Exit(1)
+		}
+		dbConfig.MaxConns = cfg.Postgres.MaxConns
+		dbConfig.ConnConfig.ConnectTimeout = cfg.Postgres.ConnTimeout
+
+		pool, err := pgxpool.NewWithConfig(ctx, dbConfig)
+		if err != nil {
+			slog.Error("failed to connect to postgres", "error", err)
+			os.Exit(1)
+		}
+		repo = repoPostgres.NewRepository(pool)
+
+	case "memory":
+		repo = repoMemory.NewRepository()
+
+	default:
+		slog.Error("unsupported storage type", "storage_type", cfg.Storage.Type)
 		os.Exit(1)
 	}
 
-	repo := repoMemory.NewRepository()
 	defer repo.Close()
 
-	cache := cache.NewCache()
-	defer cache.Close()
+	if cfg.Redis.Addr == "" {
+		slog.Error("Redis address is required for cache and rate limiter")
+		os.Exit(1)
+	}
+	redisClient := redis.NewClient(&redis.Options{
+		Addr:         cfg.Redis.Addr,
+		Password:     cfg.Redis.Password,
+		DB:           cfg.Redis.DB,
+		DialTimeout:  cfg.Redis.DialTimeout,
+		ReadTimeout:  cfg.Redis.ReadTimeout,
+		WriteTimeout: cfg.Redis.WriteTimeout,
+	})
+	defer redisClient.Close()
+	if err := redisClient.Ping(ctx).Err(); err != nil {
+		slog.Error("failed to connect to redis", "error", err)
+		os.Exit(1)
+	}
 
-	bloomFilter := bloom.NewBloomFilter(cfg.BloomN, cfg.BloomP)
+	cache := cacheRedis.NewCache(redisClient)
+	slog.Info("using redis cache", "addr", cfg.Redis.Addr)
 
-	rateLimiter := limiter.NewRateLimiter(cfg.RateLimitMax, cfg.RateLimitWindow)
-	defer rateLimiter.Close()
+	rate := float64(cfg.RateLimiter.MaxRequests) / cfg.RateLimiter.Window.Seconds()
+	rateLimiter, err := limiterRedis.NewRateLimiter(redisClient, rate, cfg.RateLimiter.MaxRequests, 1, cfg.RateLimiter.ScriptPath)
+	if err != nil {
+		slog.Error("failed to create rate limiter", "error", err)
+		os.Exit(1)
+	}
+	slog.Info("using redis rate limiter", "max_req", cfg.RateLimiter.MaxRequests, "window_sec", cfg.RateLimiter.Window.Seconds())
+
+	bloomFilter := bloom.NewBloomFilter(cfg.Bloom.ExpectedItems, cfg.Bloom.FalsePositiveProb)
+	slog.Info("bloom filter initialized", "expected_items", cfg.Bloom.ExpectedItems, "false_positive_prob", cfg.Bloom.FalsePositiveProb)
 
 	shortenerService := usecase.NewShortenerService(
 		repo,
 		cache,
 		bloomFilter,
-		cfg.ShortCodeLength,
-		cfg.Domain,
+		cfg.Shortener.CodeLength,
+		cfg.Shortener.Domain,
 	)
 
 	h := handler.NewHandler(shortenerService)
@@ -66,25 +119,26 @@ func main() {
 	gin.SetMode(gin.ReleaseMode)
 	router := gin.New()
 	router.Use(gin.Recovery())
-	router.Use(midleware.RateLimitMiddleware(rateLimiter))
+	router.Use(middleware.RateLimitMiddleware(rateLimiter))
 
 	router.POST("/shorten", h.Shorten)
 	router.GET("/:code", h.Redirect)
 
-	if cfg.EnableMetrics {
+	if cfg.HTTP.EnableMetrics {
 		router.GET("/metrics", gin.WrapH(promhttp.Handler()))
+		slog.Info("metrics endpoint enabled", "path", "/metrics")
 	}
 
 	srv := &http.Server{
-		Addr:         fmt.Sprintf(":%d", cfg.Port),
+		Addr:         fmt.Sprintf(":%d", cfg.HTTP.Port),
 		Handler:      router,
-		ReadTimeout:  15 * time.Second,
-		WriteTimeout: 15 * time.Second,
-		IdleTimeout:  60 * time.Second,
+		ReadTimeout:  cfg.HTTP.ReadTimeout,
+		WriteTimeout: cfg.HTTP.WriteTimeout,
+		IdleTimeout:  cfg.HTTP.IdleTimeout,
 	}
 
 	go func() {
-		slog.Info("server started", "port", cfg.Port)
+		slog.Info("server started", "port", cfg.HTTP.Port)
 		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			slog.Error("server failed", "error", err)
 			os.Exit(1)

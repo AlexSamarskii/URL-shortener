@@ -13,7 +13,6 @@ run: build
 test:
 	go test -v -race ./...
 
-# Очистка
 clean:
 	rm -f $(BINARY_NAME)
 	go clean
