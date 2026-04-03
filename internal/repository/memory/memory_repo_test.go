@@ -24,7 +24,7 @@ func TestCreateURL_Success(t *testing.T) {
 		ShortCode:   testShortCode,
 		OriginalURL: testOriginalURL,
 	}
-	err := r.CreateURL(ctx, url)
+	_, err := r.CreateURL(ctx, url)
 	require.NoError(t, err)
 
 	r.mu.RLock()
@@ -44,14 +44,14 @@ func TestCreateURL_DuplicateShortCode(t *testing.T) {
 		ShortCode:   testShortCode,
 		OriginalURL: testOriginalURL,
 	}
-	err := r.CreateURL(ctx, url1)
+	_, err := r.CreateURL(ctx, url1)
 	require.NoError(t, err)
 
 	url2 := &entity.URL{
 		ShortCode:   testShortCode,
 		OriginalURL: "https://another.com",
 	}
-	err = r.CreateURL(ctx, url2)
+	_, err = r.CreateURL(ctx, url2)
 	assert.ErrorIs(t, err, entity.ErrAlreadyExists)
 }
 
@@ -63,7 +63,7 @@ func TestGetURLByShortCode_Success(t *testing.T) {
 		ShortCode:   testShortCode,
 		OriginalURL: testOriginalURL,
 	}
-	err := r.CreateURL(ctx, url)
+	_, err := r.CreateURL(ctx, url)
 	require.NoError(t, err)
 
 	got, err := r.GetURLByShortCode(ctx, testShortCode)
@@ -89,7 +89,7 @@ func TestGetURLByShortCode_Expired(t *testing.T) {
 		OriginalURL: testOriginalURL,
 		ExpiresAt:   &expiredAt,
 	}
-	err := r.CreateURL(ctx, url)
+	_, err := r.CreateURL(ctx, url)
 	require.NoError(t, err)
 
 	_, err = r.GetURLByShortCode(ctx, testShortCode)
@@ -111,7 +111,7 @@ func TestGetURLByOriginalURL_Success(t *testing.T) {
 		ShortCode:   testShortCode,
 		OriginalURL: testOriginalURL,
 	}
-	err := r.CreateURL(ctx, url)
+	_, err := r.CreateURL(ctx, url)
 	require.NoError(t, err)
 
 	got, err := r.GetURLByOriginalURL(ctx, testOriginalURL)
@@ -127,7 +127,7 @@ func TestGetURLByOriginalURL_InconsistentIndex(t *testing.T) {
 		ShortCode:   testShortCode,
 		OriginalURL: testOriginalURL,
 	}
-	err := r.CreateURL(ctx, url)
+	_, err := r.CreateURL(ctx, url)
 	require.NoError(t, err)
 
 	r.mu.Lock()
@@ -161,7 +161,7 @@ func TestGetURLByOriginalURL_Expired(t *testing.T) {
 		OriginalURL: testOriginalURL,
 		ExpiresAt:   &expiredAt,
 	}
-	err := r.CreateURL(ctx, url)
+	_, err := r.CreateURL(ctx, url)
 	require.NoError(t, err)
 
 	_, err = r.GetURLByOriginalURL(ctx, testOriginalURL)
@@ -187,7 +187,7 @@ func TestCheckShortCodeExists(t *testing.T) {
 		ShortCode:   testShortCode,
 		OriginalURL: testOriginalURL,
 	}
-	err = r.CreateURL(ctx, url)
+	_, err = r.CreateURL(ctx, url)
 	require.NoError(t, err)
 
 	exists, err = r.CheckShortCodeExists(ctx, testShortCode)

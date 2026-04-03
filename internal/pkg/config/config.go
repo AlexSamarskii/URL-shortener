@@ -46,10 +46,8 @@ type RedisConfig struct {
 }
 
 type RateLimiterConfig struct {
-	Enabled     bool          `yaml:"enabled"`
 	MaxRequests int           `yaml:"maxRequests"`
 	Window      time.Duration `yaml:"window"`
-	ScriptPath  string        `yaml:"scriptPath"`
 }
 
 type BloomConfig struct {
@@ -160,10 +158,6 @@ func Load() (*Config, error) {
 	if v := os.Getenv("RATE_LIMIT_WINDOW_SEC"); v != "" {
 		cfg.RateLimiter.Window = time.Duration(getEnvInt("RATE_LIMIT_WINDOW_SEC", int(cfg.RateLimiter.Window.Seconds()))) * time.Second
 	}
-	if v := os.Getenv("RATE_LIMIT_SCRIPT_PATH"); v != "" {
-		cfg.RateLimiter.ScriptPath = v
-	}
-
 	if v := os.Getenv("BLOOM_N"); v != "" {
 		cfg.Bloom.ExpectedItems = uint(getEnvInt("BLOOM_N", int(cfg.Bloom.ExpectedItems)))
 	}

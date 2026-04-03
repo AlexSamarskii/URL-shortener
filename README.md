@@ -42,7 +42,6 @@ REDIS_READ_TIMEOUT_SEC=3
 REDIS_WRITE_TIMEOUT_SEC=3
 RATE_LIMIT_MAX=100
 RATE_LIMIT_WINDOW_SEC=60
-RATE_LIMIT_SCRIPT_PATH=/scripts/rate_limit.lua
 BLOOM_N=1000000
 BLOOM_P=0.001
 ```
@@ -185,7 +184,6 @@ make test-all
 │       ├── cache/         # Redis cache
 │       └── rate_limiter/  # Redis token bucket
 ├── migrations/            # SQL migration files
-├── scripts/rate_limit.lua # lua script for rate_limiting
 ├── Makefile
 ├── Dockerfile
 ├── docker-compose.yml
@@ -217,3 +215,108 @@ make swagger
 - **Фильтр Блума** снижает количество обращений в репозиторий для несуществующих коротких кодов.
 - **Кэш Redis** хранит недавно запрошенные URL с TTL, производным от срока жизни оригинальной ссылки.
 - **PostgreSQL** использует индексы на `short_code` и `original_url` для быстрого поиска.
+
+## Нагрузочное тестирование
+
+```env
+RATE_LIMIT_MAX=100
+RATE_LIMIT_WINDOW_SEC=10
+```
+
+```text
+hey -n 1000 -c 50 -m POST   -H "Content-Type: application/json"   -d '{"url":"https://career.ozon.ru/fintech/vacancy?id=131698788"}'   http://localhost:8080/shorten
+
+Summary:
+  Total:        0.0723 secs
+  Slowest:      0.0174 secs
+  Fastest:      0.0003 secs
+  Average:      0.0033 secs
+  Requests/sec: 13839.7470
+  
+  Total data:   35300 bytes
+  Size/request: 35 bytes
+
+Response time histogram:
+  0.000 [1]     |
+  0.002 [298]   |■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■
+  0.004 [345]   |■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■
+  0.005 [240]   |■■■■■■■■■■■■■■■■■■■■■■■■■■■■
+  0.007 [57]    |■■■■■■■
+  0.009 [33]    |■■■■
+  0.011 [9]     |■
+  0.012 [9]     |■
+  0.014 [4]     |
+  0.016 [3]     |
+  0.017 [1]     |
+
+
+Latency distribution:
+  10%% in 0.0009 secs
+  25%% in 0.0018 secs
+  50%% in 0.0030 secs
+  75%% in 0.0043 secs
+  90%% in 0.0059 secs
+  95%% in 0.0077 secs
+  99%% in 0.0116 secs
+
+Details (average, fastest, slowest):
+  DNS+dialup:   0.0000 secs, 0.0000 secs, 0.0023 secs
+  DNS-lookup:   0.0000 secs, 0.0000 secs, 0.0041 secs
+  req write:    0.0003 secs, 0.0000 secs, 0.0090 secs
+  resp wait:    0.0015 secs, 0.0002 secs, 0.0042 secs
+  resp read:    0.0010 secs, 0.0000 secs, 0.0086 secs
+
+Status code distribution:
+  [200] 100 responses
+  [429] 900 responses
+
+```
+
+```text
+hey -n 1000 -c 50 http://localhost:8080/9wDkp7h4U_
+
+Summary:
+  Total:        0.0756 secs
+  Slowest:      0.0174 secs
+  Fastest:      0.0002 secs
+  Average:      0.0035 secs
+  Requests/sec: 13228.6581
+  
+  Total data:   30400 bytes
+  Size/request: 30 bytes
+
+Response time histogram:
+  0.000 [1]     |
+  0.002 [278]   |■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■
+  0.004 [353]   |■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■
+  0.005 [177]   |■■■■■■■■■■■■■■■■■■■■
+  0.007 [82]    |■■■■■■■■■
+  0.009 [57]    |■■■■■■
+  0.011 [39]    |■■■■
+  0.012 [5]     |■
+  0.014 [4]     |
+  0.016 [1]     |
+  0.017 [3]     |
+
+
+Latency distribution:
+  10%% in 0.0006 secs
+  25%% in 0.0017 secs
+  50%% in 0.0031 secs
+  75%% in 0.0046 secs
+  90%% in 0.0072 secs
+  95%% in 0.0089 secs
+  99%% in 0.0114 secs
+
+Details (average, fastest, slowest):
+  DNS+dialup:   0.0001 secs, 0.0000 secs, 0.0058 secs
+  DNS-lookup:   0.0001 secs, 0.0000 secs, 0.0035 secs
+  req write:    0.0003 secs, 0.0000 secs, 0.0055 secs
+  resp wait:    0.0015 secs, 0.0001 secs, 0.0048 secs
+  resp read:    0.0012 secs, 0.0000 secs, 0.0108 secs
+
+Status code distribution:
+  [404] 100 responses
+  [429] 900 responses
+
+```

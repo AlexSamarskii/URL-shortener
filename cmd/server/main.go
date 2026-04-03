@@ -54,6 +54,7 @@ func main() {
 			slog.Error("failed to init repository", "error", err)
 			os.Exit(1)
 		}
+		defer pool.Close()
 		repo = repoPostgres.NewRepository(pool)
 
 	case "memory":
@@ -85,7 +86,7 @@ func main() {
 	slog.Info("using redis cache", "addr", cfg.Redis.Addr)
 
 	rate := float64(cfg.RateLimiter.MaxRequests) / cfg.RateLimiter.Window.Seconds()
-	rateLimiter, err := limiterRedis.NewRateLimiter(redisClient, rate, cfg.RateLimiter.MaxRequests, 1, cfg.RateLimiter.ScriptPath)
+	rateLimiter, err := limiterRedis.NewRateLimiter(redisClient, rate, cfg.RateLimiter.MaxRequests, 1)
 	if err != nil {
 		slog.Error("failed to create rate limiter", "error", err)
 		os.Exit(1)

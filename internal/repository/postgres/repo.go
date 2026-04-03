@@ -3,6 +3,7 @@ package postgres
 import (
 	"context"
 	"errors"
+	"sync"
 	"time"
 
 	"github.com/jackc/pgx/v5"
@@ -13,25 +14,70 @@ import (
 )
 
 type Repository struct {
-	db *pgxpool.Pool
+	db     *pgxpool.Pool
+	stopCh chan struct{}
+	once   sync.Once
 }
 
 func NewRepository(db *pgxpool.Pool) *Repository {
-	return &Repository{db: db}
+	r := &Repository{
+		db:     db,
+		stopCh: make(chan struct{}),
+	}
+	go r.cleanupExpired()
+	return r
 }
 
-func (r *Repository) CreateURL(ctx context.Context, url *entity.URL) error {
-	query := `INSERT INTO urls (short_code, original_url, expires_at, created_at)
-              VALUES ($1, $2, $3, $4)`
-	_, err := r.db.Exec(ctx, query, url.ShortCode, url.OriginalURL, url.ExpiresAt, url.CreatedAt)
-	if err != nil {
-		var pgErr *pgconn.PgError
-		if errors.As(err, &pgErr) && pgErr.Code == "23505" {
-			return entity.ErrAlreadyExists
+func (r *Repository) Close() {
+	r.once.Do(func() {
+		close(r.stopCh)
+	})
+}
+
+func (r *Repository) cleanupExpired() {
+	ticker := time.NewTicker(1 * time.Hour)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-ticker.C:
+			ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+			_, _ = r.db.Exec(ctx, `DELETE FROM urls WHERE expires_at < NOW()`)
+			cancel()
+		case <-r.stopCh:
+			return
 		}
-		return err
 	}
-	return nil
+}
+
+func (r *Repository) CreateURL(ctx context.Context, url *entity.URL) (string, error) {
+	query := `
+        INSERT INTO urls (short_code, original_url, expires_at, created_at)
+        VALUES ($1, $2, $3, $4)
+        ON CONFLICT (original_url) DO NOTHING
+        RETURNING short_code
+    `
+	var shortCode string
+	err := r.db.QueryRow(ctx, query,
+		url.ShortCode, url.OriginalURL, url.ExpiresAt, url.CreatedAt,
+	).Scan(&shortCode)
+
+	if err == nil {
+		return shortCode, nil
+	}
+	if errors.Is(err, pgx.ErrNoRows) {
+		var existingCode string
+		getQuery := `SELECT short_code FROM urls WHERE original_url = $1`
+		err = r.db.QueryRow(ctx, getQuery, url.OriginalURL).Scan(&existingCode)
+		if err != nil {
+			return "", err
+		}
+		return existingCode, nil
+	}
+	var pgErr *pgconn.PgError
+	if errors.As(err, &pgErr) && pgErr.Code == "23505" && pgErr.ConstraintName == "urls_pkey" {
+		return "", entity.ErrAlreadyExists
+	}
+	return "", err
 }
 
 func (r *Repository) GetURLByShortCode(ctx context.Context, shortCode string) (*entity.URL, error) {
@@ -88,8 +134,4 @@ func (r *Repository) CheckShortCodeExists(ctx context.Context, shortCode string)
 	var exists bool
 	err := r.db.QueryRow(ctx, query, shortCode).Scan(&exists)
 	return exists, err
-}
-
-func (r *Repository) Close() {
-	r.db.Close()
 }

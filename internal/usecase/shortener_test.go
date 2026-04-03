@@ -325,16 +325,3 @@ func TestCalcTTL(t *testing.T) {
 	ttl = s.calcTTL(&past)
 	assert.Equal(t, defaultCacheTTL, ttl)
 }
-
-func TestEncodeBase62Full(t *testing.T) {
-	assert.Equal(t, "0", encodeBase62Full(0))
-	assert.Equal(t, "1", encodeBase62Full(1))
-	assert.Equal(t, "A", encodeBase62Full(10))
-	assert.Equal(t, "z", encodeBase62Full(61))
-}
-
-func TestPadLeft(t *testing.T) {
-	assert.Equal(t, "000123", padLeft("123", 6))
-	assert.Equal(t, "12345", padLeft("12345", 5))
-	assert.Equal(t, "123456", padLeft("123456", 5))
-}

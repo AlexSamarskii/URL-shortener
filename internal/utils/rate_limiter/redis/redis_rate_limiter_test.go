@@ -91,8 +91,7 @@ func TestNewRateLimiter_Success(t *testing.T) {
 	client, cleanup := setupRedisContainer(t)
 	defer cleanup()
 
-	scriptPath := createTempScriptFile(t, testScript)
-	limiter, err := NewRateLimiter(client, 1.0, 10, 1, scriptPath)
+	limiter, err := NewRateLimiter(client, 1.0, 10, 1, )
 	require.NoError(t, err)
 	assert.NotNil(t, limiter)
 	tb := limiter.(*tokenBucket)
@@ -101,7 +100,7 @@ func TestNewRateLimiter_Success(t *testing.T) {
 	assert.Equal(t, 1, tb.cost)
 }
 
-func TestNewRateLimiter_InvalidScriptPath(t *testing.T) {
+func TestNewRateLimiter_Invalid(t *testing.T) {
 	client, cleanup := setupRedisContainer(t)
 	defer cleanup()
 	_, err := NewRateLimiter(client, 1.0, 10, 1, "/nonexistent/path.lua")
@@ -111,8 +110,8 @@ func TestNewRateLimiter_InvalidScriptPath(t *testing.T) {
 func TestAllow_Success(t *testing.T) {
 	client, cleanup := setupRedisContainer(t)
 	defer cleanup()
-	scriptPath := createTempScriptFile(t, testScript)
-	limiter, err := NewRateLimiter(client, 10.0, 5, 1, scriptPath)
+	 := createTempScriptFile(t, testScript)
+	limiter, err := NewRateLimiter(client, 10.0, 5, 1, )
 	require.NoError(t, err)
 
 	ctx := context.Background()
@@ -131,8 +130,8 @@ func TestAllow_Success(t *testing.T) {
 func TestAllow_Refill(t *testing.T) {
 	client, cleanup := setupRedisContainer(t)
 	defer cleanup()
-	scriptPath := createTempScriptFile(t, testScript)
-	limiter, err := NewRateLimiter(client, 2.0, 5, 1, scriptPath)
+	 := createTempScriptFile(t, testScript)
+	limiter, err := NewRateLimiter(client, 2.0, 5, 1)
 	require.NoError(t, err)
 
 	ctx := context.Background()
@@ -159,8 +158,8 @@ func TestAllow_Refill(t *testing.T) {
 func TestAllow_ContextCancel(t *testing.T) {
 	client, cleanup := setupRedisContainer(t)
 	defer cleanup()
-	scriptPath := createTempScriptFile(t, testScript)
-	limiter, err := NewRateLimiter(client, 1.0, 5, 1, scriptPath)
+	 := createTempScriptFile(t, testScript)
+	limiter, err := NewRateLimiter(client, 1.0, 5, 1, )
 	require.NoError(t, err)
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -172,8 +171,8 @@ func TestAllow_ContextCancel(t *testing.T) {
 func TestAllow_ClientClosed(t *testing.T) {
 	client, cleanup := setupRedisContainer(t)
 	defer cleanup()
-	scriptPath := createTempScriptFile(t, testScript)
-	limiter, err := NewRateLimiter(client, 1.0, 5, 1, scriptPath)
+	 := createTempScriptFile(t, testScript)
+	limiter, err := NewRateLimiter(client, 1.0, 5, 1, )
 	require.NoError(t, err)
 
 	// Закрываем клиент
@@ -186,8 +185,8 @@ func TestAllow_ClientClosed(t *testing.T) {
 func TestClose(t *testing.T) {
 	client, cleanup := setupRedisContainer(t)
 	defer cleanup()
-	scriptPath := createTempScriptFile(t, testScript)
-	limiter, err := NewRateLimiter(client, 1.0, 5, 1, scriptPath)
+	 := createTempScriptFile(t, testScript)
+	limiter, err := NewRateLimiter(client, 1.0, 5, 1, )
 	require.NoError(t, err)
 
 	limiter.Close()

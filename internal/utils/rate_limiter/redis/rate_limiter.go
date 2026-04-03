@@ -2,13 +2,17 @@ package ratelimiter
 
 import (
 	"context"
-	"os"
 	"time"
 
 	limiter "github.com/AlexSamarskii/URL-shortener/internal/utils/rate_limiter"
 
+	_ "embed"
+
 	"github.com/redis/go-redis/v9"
 )
+
+//go:embed rate_limit.lua
+var rateLimitScript string
 
 type tokenBucket struct {
 	client   *redis.Client
@@ -18,12 +22,8 @@ type tokenBucket struct {
 	cost     int
 }
 
-func NewRateLimiter(client *redis.Client, rate float64, capacity int, cost int, scriptPath string) (limiter.RateLimiter, error) {
-	data, err := os.ReadFile(scriptPath)
-	if err != nil {
-		return nil, err
-	}
-	script := redis.NewScript(string(data))
+func NewRateLimiter(client *redis.Client, rate float64, capacity int, cost int) (limiter.RateLimiter, error) {
+	script := redis.NewScript(rateLimitScript)
 	return &tokenBucket{
 		client:   client,
 		script:   script,

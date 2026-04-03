@@ -9,9 +9,10 @@ var (
 )
 
 var (
-	ErrURLInvalid   = errors.New("invalid URL")
-	ErrAliasExists  = errors.New("alias already exists")
-	ErrURLNotFound  = errors.New("url not found")
-	ErrURLExpired   = errors.New("url expired")
-	ErrGenerateCode = errors.New("failed to generate unique code")
+	ErrURLInvalid        = errors.New("invalid URL")
+	ErrAliasExists       = errors.New("alias already exists")
+	ErrURLNotFound       = errors.New("url not found")
+	ErrURLExpired        = errors.New("url expired")
+	ErrGenerateCode      = errors.New("failed to generate unique code")
+	ErrOriginalURLExists = errors.New("original URL already exists")
 )

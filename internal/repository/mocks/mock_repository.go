@@ -12,6 +12,7 @@ package mocks
 import (
 	context "context"
 	reflect "reflect"
+
 	entity "github.com/AlexSamarskii/URL-shortener/internal/entity"
 
 	gomock "go.uber.org/mock/gomock"

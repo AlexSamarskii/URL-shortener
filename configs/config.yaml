@@ -32,7 +32,6 @@ redis:
 rateLimiter:
   maxRequests: 100
   window: 60s
-  scriptPath: "scripts/rate_limit.lua"
 
 bloom:
   expectedItems: 1000000

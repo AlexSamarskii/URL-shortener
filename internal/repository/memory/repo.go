@@ -33,16 +33,26 @@ func isExpired(url *entity.URL) bool {
 	return url.ExpiresAt != nil && url.ExpiresAt.Before(time.Now().UTC())
 }
 
-func (r *repo) CreateURL(ctx context.Context, url *entity.URL) error {
+func (r *repo) CreateURL(ctx context.Context, url *entity.URL) (string, error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
-	if _, exists := r.urls[url.ShortCode]; exists {
-		return entity.ErrAlreadyExists
+	if existingCode, ok := r.orig[url.OriginalURL]; ok {
+		existingURL := r.urls[existingCode]
+		if existingURL != nil && !isExpired(existingURL) {
+			return existingCode, nil
+		}
+		delete(r.urls, existingCode)
+		delete(r.orig, url.OriginalURL)
 	}
+
+	if _, ok := r.urls[url.ShortCode]; ok {
+		return "", entity.ErrAlreadyExists
+	}
+
 	r.urls[url.ShortCode] = url
 	r.orig[url.OriginalURL] = url.ShortCode
-	return nil
+	return url.ShortCode, nil
 }
 
 func (r *repo) GetURLByShortCode(ctx context.Context, shortCode string) (*entity.URL, error) {
@@ -85,8 +95,11 @@ func (r *repo) GetURLByOriginalURL(ctx context.Context, originalURL string) (*en
 func (r *repo) CheckShortCodeExists(ctx context.Context, shortCode string) (bool, error) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
-	_, ok := r.urls[shortCode]
+	url, ok := r.urls[shortCode]
 	if !ok {
+		return false, nil
+	}
+	if isExpired(url) {
 		return false, nil
 	}
 	return true, nil

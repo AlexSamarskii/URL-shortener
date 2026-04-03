@@ -2,10 +2,11 @@ package usecase
 
 import (
 	"context"
+	"crypto/sha256"
 	"errors"
 	"fmt"
-	"hash/fnv"
 	"log/slog"
+	"math/big"
 	"net/url"
 	"strconv"
 	"strings"
@@ -70,40 +71,21 @@ func (s *ShortenerService) Shorten(ctx context.Context, req ShortenRequest) (*Sh
 	if err := validateURL(req.URL); err != nil {
 		return nil, fmt.Errorf("%w: %v", entity.ErrURLInvalid, err)
 	}
-
 	var expiresAt *time.Time
 	if req.ExpiresIn != nil && *req.ExpiresIn > 0 {
 		t := time.Now().UTC().Add(time.Duration(*req.ExpiresIn) * time.Second)
 		expiresAt = &t
 	}
-
 	if req.Alias != nil && *req.Alias != "" {
 		return s.shortenWithAlias(ctx, req.URL, *req.Alias, expiresAt)
 	}
-
-	existing, err := s.repo.GetURLByOriginalURL(ctx, req.URL)
-	if err == nil && existing != nil {
-		return &ShortenResponse{
-			ShortCode: existing.ShortCode,
-			ShortURL:  fmt.Sprintf("%s/%s", s.domainPrefix, existing.ShortCode),
-			ExpiresAt: existing.ExpiresAt,
-		}, nil
-	}
-	if err != nil && !errors.Is(err, entity.ErrNotFound) {
-		return nil, fmt.Errorf("failed to check existing URL: %w", err)
-	}
-
-	shortCode, err := s.generateUniqueCodeFromURL(ctx, req.URL, expiresAt)
+	shortCode, err := s.generateUniqueCodeFromURL(ctx, req.URL, expiresAt, s.codeLength)
 	if err != nil {
 		return nil, err
 	}
-
 	s.bloom.Add([]byte(shortCode))
 	ttl := s.calcTTL(expiresAt)
-	if err := s.cache.Set(ctx, cacheKey(shortCode), req.URL, ttl); err != nil {
-		slog.Error("failed to set cache", "short_code", shortCode, "error", err)
-	}
-
+	_ = s.cache.Set(ctx, cacheKey(shortCode), req.URL, ttl)
 	return &ShortenResponse{
 		ShortCode: shortCode,
 		ShortURL:  fmt.Sprintf("%s/%s", s.domainPrefix, shortCode),
@@ -124,10 +106,21 @@ func (s *ShortenerService) shortenWithAlias(ctx context.Context, originalURL, al
 		CreatedAt:   now,
 	}
 
-	err := s.repo.CreateURL(ctx, urlRecord)
+	_, err := s.repo.CreateURL(ctx, urlRecord)
 	if err != nil {
 		if errors.Is(err, entity.ErrAlreadyExists) {
 			return nil, entity.ErrAliasExists
+		}
+		if errors.Is(err, entity.ErrOriginalURLExists) {
+			existing, err := s.repo.GetURLByOriginalURL(ctx, originalURL)
+			if err != nil {
+				return nil, err
+			}
+			return &ShortenResponse{
+				ShortCode: existing.ShortCode,
+				ShortURL:  fmt.Sprintf("%s/%s", s.domainPrefix, existing.ShortCode),
+				ExpiresAt: existing.ExpiresAt,
+			}, nil
 		}
 		return nil, fmt.Errorf("failed to create alias: %w", err)
 	}
@@ -154,17 +147,19 @@ func (s *ShortenerService) validateAliasFormat(alias string) error {
 			return fmt.Errorf("alias contains invalid character: %c", ch)
 		}
 	}
+
 	return nil
 }
 
-func (s *ShortenerService) generateUniqueCodeFromURL(ctx context.Context, originalURL string, expiresAt *time.Time) (string, error) {
+func (s *ShortenerService) generateUniqueCodeFromURL(ctx context.Context, originalURL string, expiresAt *time.Time, length int) (string, error) {
 	now := time.Now().UTC()
+	var maxCodeValue = new(big.Int).Exp(big.NewInt(int64(base)), big.NewInt(int64(length)), nil)
 	for salt := 0; salt < maxAttempts; salt++ {
 		data := originalURL + ":" + strconv.Itoa(salt)
-		hasher := fnv.New64a()
-		hasher.Write([]byte(data))
-		num := hasher.Sum64()
-		code := padLeft(encodeBase62Full(num), s.codeLength)
+		hash := sha256.Sum256([]byte(data))
+		num := new(big.Int).SetBytes(hash[:])
+		remainder := new(big.Int).Mod(num, maxCodeValue)
+		code := encodeBase63Fixed(remainder, s.codeLength)
 
 		urlRecord := &entity.URL{
 			ShortCode:   code,
@@ -172,16 +167,37 @@ func (s *ShortenerService) generateUniqueCodeFromURL(ctx context.Context, origin
 			ExpiresAt:   expiresAt,
 			CreatedAt:   now,
 		}
-		err := s.repo.CreateURL(ctx, urlRecord)
+		existingCode, err := s.repo.CreateURL(ctx, urlRecord)
 		if err == nil {
-			return code, nil
+			return existingCode, nil
 		}
 		if errors.Is(err, entity.ErrAlreadyExists) {
 			continue
 		}
-		return "", fmt.Errorf("failed to create URL: %w", err)
+		return "", err
 	}
 	return "", entity.ErrGenerateCode
+}
+
+func encodeBase63Fixed(n *big.Int, length int) string {
+	if n.Sign() == 0 {
+		return strings.Repeat(string(alphabet[0]), length)
+	}
+	digits := make([]byte, 0, length)
+	tmp := new(big.Int).Set(n)
+	zero := big.NewInt(0)
+	b := big.NewInt(int64(base))
+	for tmp.Cmp(zero) > 0 {
+		rem := new(big.Int).Mod(tmp, b)
+		idx := int(rem.Int64())
+		digits = append([]byte{alphabet[idx]}, digits...)
+		tmp.Div(tmp, b)
+	}
+	if len(digits) < length {
+		pad := strings.Repeat(string(alphabet[0]), length-len(digits))
+		return pad + string(digits)
+	}
+	return string(digits)
 }
 
 func (s *ShortenerService) GetOriginalURL(ctx context.Context, shortCode string) (string, error) {
@@ -212,30 +228,6 @@ func (s *ShortenerService) GetOriginalURL(ctx context.Context, shortCode string)
 	}
 
 	return urlRecord.OriginalURL, nil
-}
-
-func encodeBase62Full(num uint64) string {
-	if num == 0 {
-		return string(alphabet[0])
-	}
-	var digits []byte
-	n := num
-	for n > 0 {
-		remainder := n % uint64(base)
-		digits = append([]byte{alphabet[remainder]}, digits...)
-		n = n / uint64(base)
-	}
-	return string(digits)
-}
-
-func padLeft(s string, length int) string {
-	if len(s) > length {
-		return s[len(s)-length:]
-	}
-	if len(s) == length {
-		return s
-	}
-	return strings.Repeat(string(alphabet[0]), length-len(s)) + s
 }
 
 func cacheKey(shortCode string) string {

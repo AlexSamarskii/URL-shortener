@@ -38,7 +38,6 @@ func setupPostgresContainer(t *testing.T) (*pgxpool.Pool, func()) {
 	pool, err := pgxpool.New(ctx, connStr)
 	require.NoError(t, err)
 
-	// Создаём таблицу в упрощённой схеме (без id и updated_at, short_code как PK)
 	_, err = pool.Exec(ctx, `
 		CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 		CREATE TABLE IF NOT EXISTS urls (
@@ -74,7 +73,7 @@ func TestCreateURL_Success(t *testing.T) {
 		CreatedAt:   now,
 	}
 
-	err := repo.CreateURL(ctx, url)
+	_, err := repo.CreateURL(ctx, url)
 	require.NoError(t, err)
 
 	got, err := repo.GetURLByShortCode(ctx, testShortCode)
@@ -95,14 +94,14 @@ func TestCreateURL_DuplicateShortCode(t *testing.T) {
 		ShortCode:   testShortCode,
 		OriginalURL: testOriginalURL,
 	}
-	err := repo.CreateURL(ctx, url1)
+	_, err := repo.CreateURL(ctx, url1)
 	require.NoError(t, err)
 
 	url2 := &entity.URL{
 		ShortCode:   testShortCode,
 		OriginalURL: "https://another.com",
 	}
-	err = repo.CreateURL(ctx, url2)
+	_, err = repo.CreateURL(ctx, url2)
 	assert.ErrorIs(t, err, entity.ErrAlreadyExists)
 }
 
@@ -119,7 +118,7 @@ func TestGetURLByShortCode_Success(t *testing.T) {
 		OriginalURL: testOriginalURL,
 		CreatedAt:   now,
 	}
-	err := repo.CreateURL(ctx, url)
+	_, err := repo.CreateURL(ctx, url)
 	require.NoError(t, err)
 
 	got, err := repo.GetURLByShortCode(ctx, testShortCode)
@@ -153,7 +152,7 @@ func TestGetURLByShortCode_Expired(t *testing.T) {
 		OriginalURL: testOriginalURL,
 		ExpiresAt:   &expiredAt,
 	}
-	err := repo.CreateURL(ctx, url)
+	_, err := repo.CreateURL(ctx, url)
 	require.NoError(t, err)
 
 	got, err := repo.GetURLByShortCode(ctx, "expired10")
@@ -173,7 +172,7 @@ func TestGetURLByOriginalURL_Success(t *testing.T) {
 		ShortCode:   testShortCode,
 		OriginalURL: testOriginalURL,
 	}
-	err := repo.CreateURL(ctx, url)
+	_, err := repo.CreateURL(ctx, url)
 	require.NoError(t, err)
 
 	got, err := repo.GetURLByOriginalURL(ctx, testOriginalURL)
@@ -206,7 +205,7 @@ func TestGetURLByOriginalURL_Expired(t *testing.T) {
 		OriginalURL: testOriginalURL,
 		ExpiresAt:   &expiredAt,
 	}
-	err := repo.CreateURL(ctx, url)
+	_, err := repo.CreateURL(ctx, url)
 	require.NoError(t, err)
 
 	got, err := repo.GetURLByOriginalURL(ctx, testOriginalURL)
@@ -230,7 +229,7 @@ func TestCheckShortCodeExists(t *testing.T) {
 		ShortCode:   testShortCode,
 		OriginalURL: testOriginalURL,
 	}
-	err = repo.CreateURL(ctx, url)
+	_, err = repo.CreateURL(ctx, url)
 	require.NoError(t, err)
 
 	exists, err = repo.CheckShortCodeExists(ctx, testShortCode)
@@ -249,7 +248,7 @@ func TestCreateURL_ClosedPool(t *testing.T) {
 		ShortCode:   "test123",
 		OriginalURL: "https://example.com",
 	}
-	err := repo.CreateURL(ctx, url)
+	_, err := repo.CreateURL(ctx, url)
 	assert.Error(t, err)
 }
 
