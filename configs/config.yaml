@@ -13,7 +13,7 @@ shortener:
   codeLength: 10
 
 postgres:
-  host: "localhost"
+  host: "postgres"
   port: "5432"
   user: "shortener"
   dbname: "shortener"
@@ -22,7 +22,7 @@ postgres:
   connTimeout: 5s
 
 redis:
-  host: "localhost"
+  host: "redis"
   port: "6379"
   db: 0
   dialTimeout: 5s

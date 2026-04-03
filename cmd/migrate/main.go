@@ -17,8 +17,9 @@ func main() {
 		log.Fatalf("Failed to load config: %v", err)
 	}
 
-	if cfg.Storage.Type != "postgres" {
-		log.Fatal("Migrations are only supported for PostgreSQL storage")
+	if cfg.Storage.Type == "memory" && cfg.Storage.Type != "postgres" {
+		log.Println("Skipping migrations because non-postgres storage selected.")
+		return
 	}
 
 	migrationsPath := "file:///migrations"

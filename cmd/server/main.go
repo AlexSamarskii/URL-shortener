@@ -39,7 +39,7 @@ func main() {
 
 	logger.Init()
 	slog.Info("starting url shortener",
-		"storage_type", cfg.Shortener,
+		"storage_type", cfg.Storage.Type,
 		"port", cfg.HTTP.Port,
 		"enable_metrics", cfg.HTTP.EnableMetrics,
 	)
