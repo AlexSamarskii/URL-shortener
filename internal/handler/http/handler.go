@@ -22,6 +22,18 @@ func NewHandler(service usecase.Shortener) *Handler {
 	return &Handler{service: service}
 }
 
+// Shorten godoc
+// @Summary      Create short URL
+// @Description  Accepts an original URL, optional TTL and custom alias. Returns short code and full short URL.
+// @Tags         urls
+// @Accept       json
+// @Produce      json
+// @Param        request body dto.ShortenRequest true "URL shortening request"
+// @Success      200  {object}  dto.ShortenResponse
+// @Failure      400  {object}  map[string]interface{}  "Invalid URL or alias format"
+// @Failure      409  {object}  map[string]interface{}  "Alias already exists"
+// @Failure      500  {object}  map[string]interface{}  "Internal server error"
+// @Router       /shorten [post]
 func (h *Handler) Shorten(c *gin.Context) {
 	var req dto.ShortenRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -60,6 +72,17 @@ func (h *Handler) Shorten(c *gin.Context) {
 	metrics.HTTPRequestsTotal.WithLabelValues("POST", "/shorten", "200").Inc()
 }
 
+// Redirect godoc
+// @Summary      Redirect to original URL
+// @Description  Redirects to the original URL using the provided short code.
+// @Tags         urls
+// @Produce      plain
+// @Param        code path string true "Short code"
+// @Success      301  "Permanent redirect"
+// @Failure      404  {object}  map[string]interface{}  "Short code not found"
+// @Failure      410  {object}  map[string]interface{}  "URL expired"
+// @Failure      500  {object}  map[string]interface{}  "Internal server error"
+// @Router       /{code} [get]
 func (h *Handler) Redirect(c *gin.Context) {
 	shortCode := c.Param("code")
 	if shortCode == "" {

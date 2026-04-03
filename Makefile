@@ -8,6 +8,7 @@ TEST_PACKAGES := $(shell go list ./internal/... | grep -v /mocks$$ | grep -v /co
 .PHONY: build
 build:
 	@echo "Building Docker image for $(APP_NAME)..."
+	go mod tidy
 	docker-compose build
 
 .PHONY: run
@@ -63,6 +64,12 @@ clean:
 lint:
 	@echo "Running linter..."
 	golangci-lint run
+
+.PHONY: swagger
+swagger:
+	@echo "Generating Swagger documentation..."
+	@which swag > /dev/null || (echo "swag not found, installing..." && go install github.com/swaggo/swag/cmd/swag@latest)
+	swag init -g cmd/server/main.go -o docs
 
 .PHONY: help
 help:

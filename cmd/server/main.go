@@ -14,7 +14,10 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/redis/go-redis/v9"
+	swaggerFiles "github.com/swaggo/files"
+	ginSwagger "github.com/swaggo/gin-swagger"
 
+	_ "github.com/AlexSamarskii/URL-shortener/docs"
 	handler "github.com/AlexSamarskii/URL-shortener/internal/handler/http"
 	"github.com/AlexSamarskii/URL-shortener/internal/middleware"
 	"github.com/AlexSamarskii/URL-shortener/internal/pkg/config"
@@ -27,8 +30,6 @@ import (
 	cacheRedis "github.com/AlexSamarskii/URL-shortener/internal/utils/cache/redis"
 	limiterRedis "github.com/AlexSamarskii/URL-shortener/internal/utils/rate_limiter/redis"
 )
-
-const rateLimitPath = "scripts/rate_limit.lua"
 
 func main() {
 	cfg, err := config.Load()
@@ -120,6 +121,8 @@ func main() {
 	router := gin.New()
 	router.Use(gin.Recovery())
 	router.Use(middleware.RateLimitMiddleware(rateLimiter))
+
+	router.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
 
 	router.POST("/shorten", h.Shorten)
 	router.GET("/:code", h.Redirect)
