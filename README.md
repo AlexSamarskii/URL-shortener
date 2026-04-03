@@ -56,7 +56,7 @@ PORT=8080
 ENABLE_METRICS=true
 DOMAIN=http://localhost:8080
 SHORT_CODE_LENGTH=10
-STORAGE_TYPE=postgres
+STORAGE_TYPE=postgres # choose storage type (postgres|memory)
 POSTGRES_HOST=postgres
 POSTGRES_PORT=5432
 POSTGRES_USER=shortener
@@ -191,7 +191,8 @@ make test-all
 ├── cmd/
 │   ├── migrate/           
 │   └── service/ 
-├── deployment/Dockerfile   
+├── deployment/Dockerfile 
+├── docs/                  # swagger docs  
 ├── configs/config.yaml     
 ├── internal/
 │   ├── entity/dto         # Domain entities & errors
@@ -230,6 +231,10 @@ make lint
 - Clean
 ```bash
 make clean
+```
+- Swagger
+```bash
+make swagger
 ```
 ---
 ### Performance Notes

@@ -82,4 +82,5 @@ help:
 	@echo "  make generate         - Generate mocks (requires mockgen)"
 	@echo "  make clean            - Remove build artifacts and coverage files"
 	@echo "  make lint             - Run golangci-lint"
+	@echo "  make swagger          - Run swagger doc generate (in docs/)"
 	@echo "  make help             - Show this help"
