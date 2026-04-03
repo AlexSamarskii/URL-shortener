@@ -21,9 +21,9 @@ func NewRepository(db *pgxpool.Pool) *Repository {
 }
 
 func (r *Repository) CreateURL(ctx context.Context, url *entity.URL) error {
-	query := `INSERT INTO urls (id, short_code, original_url, expires_at, created_at, updated_at)
-              VALUES ($1, $2, $3, $4, $5, $6)`
-	_, err := r.db.Exec(ctx, query, url.ID, url.ShortCode, url.OriginalURL, url.ExpiresAt, url.CreatedAt, url.UpdatedAt)
+	query := `INSERT INTO urls (short_code, original_url, expires_at, created_at)
+              VALUES ($1, $2, $3, $4)`
+	_, err := r.db.Exec(ctx, query, url.ShortCode, url.OriginalURL, url.ExpiresAt, url.CreatedAt)
 	if err != nil {
 		var pgErr *pgconn.PgError
 		if errors.As(err, &pgErr) && pgErr.Code == "23505" {
@@ -36,19 +36,17 @@ func (r *Repository) CreateURL(ctx context.Context, url *entity.URL) error {
 
 func (r *Repository) GetURLByShortCode(ctx context.Context, shortCode string) (*entity.URL, error) {
 	query := `
-		SELECT id, short_code, original_url, expires_at, created_at, updated_at
+		SELECT short_code, original_url, expires_at, created_at
 		FROM urls
 		WHERE short_code = $1
 	`
 	var url entity.URL
 	var expiresAt *time.Time
 	err := r.db.QueryRow(ctx, query, shortCode).Scan(
-		&url.ID,
 		&url.ShortCode,
 		&url.OriginalURL,
 		&expiresAt,
 		&url.CreatedAt,
-		&url.UpdatedAt,
 	)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
@@ -62,7 +60,7 @@ func (r *Repository) GetURLByShortCode(ctx context.Context, shortCode string) (*
 
 func (r *Repository) GetURLByOriginalURL(ctx context.Context, originalURL string) (*entity.URL, error) {
 	query := `
-		SELECT id, short_code, original_url, expires_at, created_at, updated_at
+		SELECT short_code, original_url, expires_at, created_at
 		FROM urls
 		WHERE original_url = $1
 		LIMIT 1
@@ -70,12 +68,10 @@ func (r *Repository) GetURLByOriginalURL(ctx context.Context, originalURL string
 	var url entity.URL
 	var expiresAt *time.Time
 	err := r.db.QueryRow(ctx, query, originalURL).Scan(
-		&url.ID,
 		&url.ShortCode,
 		&url.OriginalURL,
 		&expiresAt,
 		&url.CreatedAt,
-		&url.UpdatedAt,
 	)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {

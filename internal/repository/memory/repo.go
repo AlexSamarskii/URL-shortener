@@ -62,12 +62,6 @@ func (r *repo) GetURLByShortCode(ctx context.Context, shortCode string) (*entity
 }
 
 func (r *repo) GetURLByOriginalURL(ctx context.Context, originalURL string) (*entity.URL, error) {
-	select {
-	case <-ctx.Done():
-		return nil, ctx.Err()
-	default:
-	}
-
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
@@ -92,7 +86,10 @@ func (r *repo) CheckShortCodeExists(ctx context.Context, shortCode string) (bool
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 	_, ok := r.urls[shortCode]
-	return ok, nil
+	if !ok {
+		return false, nil
+	}
+	return true, nil
 }
 
 func (r *repo) cleanupExpired() {

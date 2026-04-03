@@ -3,6 +3,7 @@ go.sum
 coverage.out
 coverage.html
 url_shortener
-bin/
 /bin/
-/docs/
+!.env.example
+/docs/*
+!/docs/.gitkeep

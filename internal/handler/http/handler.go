@@ -2,7 +2,6 @@ package handler
 
 import (
 	"net/http"
-	"strconv"
 	"time"
 
 	"github.com/AlexSamarskii/URL-shortener/internal/entity/dto"
@@ -38,7 +37,6 @@ func (h *Handler) Shorten(c *gin.Context) {
 	var req dto.ShortenRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-		metrics.HTTPRequestsTotal.WithLabelValues("POST", "/shorten", "400").Inc()
 		return
 	}
 
@@ -60,7 +58,6 @@ func (h *Handler) Shorten(c *gin.Context) {
 			status = http.StatusInternalServerError
 		}
 		c.JSON(status, gin.H{"error": err.Error()})
-		metrics.HTTPRequestsTotal.WithLabelValues("POST", "/shorten", strconv.Itoa(status)).Inc()
 		return
 	}
 
@@ -69,16 +66,15 @@ func (h *Handler) Shorten(c *gin.Context) {
 		ShortURL:  resp.ShortURL,
 		ExpiresAt: resp.ExpiresAt,
 	})
-	metrics.HTTPRequestsTotal.WithLabelValues("POST", "/shorten", "200").Inc()
 }
 
-// Redirect godoc
-// @Summary      Redirect to original URL
-// @Description  Redirects to the original URL using the provided short code.
+// GetOriginalURL godoc
+// @Summary      Get original URL
+// @Description  Returns the original URL for a given short code.
 // @Tags         urls
-// @Produce      plain
+// @Produce      json
 // @Param        code path string true "Short code"
-// @Success      301  "Permanent redirect"
+// @Success      200  {object}  map[string]string  "original_url"
 // @Failure      404  {object}  map[string]interface{}  "Short code not found"
 // @Failure      410  {object}  map[string]interface{}  "URL expired"
 // @Failure      500  {object}  map[string]interface{}  "Internal server error"
@@ -87,7 +83,6 @@ func (h *Handler) Redirect(c *gin.Context) {
 	shortCode := c.Param("code")
 	if shortCode == "" {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "short code required"})
-		metrics.HTTPRequestsTotal.WithLabelValues("GET", "/:code", "400").Inc()
 		return
 	}
 
@@ -106,12 +101,10 @@ func (h *Handler) Redirect(c *gin.Context) {
 			status = http.StatusInternalServerError
 		}
 		c.JSON(status, gin.H{"error": err.Error()})
-		metrics.HTTPRequestsTotal.WithLabelValues("GET", "/:code", strconv.Itoa(status)).Inc()
 		metrics.RedirectLatency.WithLabelValues("false").Observe(latency)
 		return
 	}
 
-	c.Redirect(http.StatusMovedPermanently, originalURL)
-	metrics.HTTPRequestsTotal.WithLabelValues("GET", "/:code", "301").Inc()
+	c.JSON(http.StatusOK, gin.H{"original_url": originalURL})
 	metrics.RedirectLatency.WithLabelValues("true").Observe(latency)
 }

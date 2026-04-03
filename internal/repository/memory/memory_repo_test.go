@@ -175,15 +175,6 @@ func TestGetURLByOriginalURL_Expired(t *testing.T) {
 	assert.False(t, ok)
 }
 
-func TestGetURLByOriginalURL_ContextCancel(t *testing.T) {
-	r := NewRepository().(*repo)
-	ctx, cancel := context.WithCancel(context.Background())
-	cancel()
-
-	_, err := r.GetURLByOriginalURL(ctx, testOriginalURL)
-	assert.ErrorIs(t, err, context.Canceled)
-}
-
 func TestCheckShortCodeExists(t *testing.T) {
 	r := NewRepository().(*repo)
 	ctx := context.Background()

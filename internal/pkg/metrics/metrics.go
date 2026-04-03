@@ -30,4 +30,12 @@ var (
 		},
 		[]string{"identifier"},
 	)
+	HTTPRequestDuration = promauto.NewHistogramVec(
+		prometheus.HistogramOpts{
+			Name:    "http_request_duration_seconds",
+			Help:    "Duration of HTTP requests in seconds",
+			Buckets: prometheus.ExponentialBuckets(0.001, 2, 10),
+		},
+		[]string{"method", "endpoint"},
+	)
 )

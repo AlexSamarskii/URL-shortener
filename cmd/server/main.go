@@ -11,9 +11,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
-	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
-	"github.com/redis/go-redis/v9"
 	swaggerFiles "github.com/swaggo/files"
 	ginSwagger "github.com/swaggo/gin-swagger"
 
@@ -21,7 +19,8 @@ import (
 	handler "github.com/AlexSamarskii/URL-shortener/internal/handler/http"
 	"github.com/AlexSamarskii/URL-shortener/internal/middleware"
 	"github.com/AlexSamarskii/URL-shortener/internal/pkg/config"
-	"github.com/AlexSamarskii/URL-shortener/internal/pkg/logger"
+	db "github.com/AlexSamarskii/URL-shortener/internal/pkg/postgres"
+	redisPkg "github.com/AlexSamarskii/URL-shortener/internal/pkg/redis"
 	"github.com/AlexSamarskii/URL-shortener/internal/repository"
 	repoMemory "github.com/AlexSamarskii/URL-shortener/internal/repository/memory"
 	repoPostgres "github.com/AlexSamarskii/URL-shortener/internal/repository/postgres"
@@ -38,7 +37,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	logger.Init()
+	initLogger()
 	slog.Info("starting url shortener",
 		"storage_type", cfg.Storage.Type,
 		"port", cfg.HTTP.Port,
@@ -50,17 +49,9 @@ func main() {
 	var repo repository.Repository
 	switch cfg.Storage.Type {
 	case "postgres":
-		dbConfig, err := pgxpool.ParseConfig(cfg.Postgres.DSN)
+		pool, err := db.NewPostgresPool(ctx, &cfg.Postgres)
 		if err != nil {
-			slog.Error("failed to parse database url", "error", err)
-			os.Exit(1)
-		}
-		dbConfig.MaxConns = cfg.Postgres.MaxConns
-		dbConfig.ConnConfig.ConnectTimeout = cfg.Postgres.ConnTimeout
-
-		pool, err := pgxpool.NewWithConfig(ctx, dbConfig)
-		if err != nil {
-			slog.Error("failed to connect to postgres", "error", err)
+			slog.Error("failed to init repository", "error", err)
 			os.Exit(1)
 		}
 		repo = repoPostgres.NewRepository(pool)
@@ -79,14 +70,11 @@ func main() {
 		slog.Error("Redis address is required for cache and rate limiter")
 		os.Exit(1)
 	}
-	redisClient := redis.NewClient(&redis.Options{
-		Addr:         cfg.Redis.Addr,
-		Password:     cfg.Redis.Password,
-		DB:           cfg.Redis.DB,
-		DialTimeout:  cfg.Redis.DialTimeout,
-		ReadTimeout:  cfg.Redis.ReadTimeout,
-		WriteTimeout: cfg.Redis.WriteTimeout,
-	})
+	redisClient, err := redisPkg.NewClient(&cfg.Redis)
+	if err != nil {
+		slog.Error("failed to init redis client", "error", err)
+		os.Exit(1)
+	}
 	defer redisClient.Close()
 	if err := redisClient.Ping(ctx).Err(); err != nil {
 		slog.Error("failed to connect to redis", "error", err)
@@ -119,6 +107,7 @@ func main() {
 
 	gin.SetMode(gin.ReleaseMode)
 	router := gin.New()
+	router.Use(middleware.MetricsMiddleware())
 	router.Use(gin.Recovery())
 	router.Use(middleware.RateLimitMiddleware(rateLimiter))
 
@@ -161,4 +150,10 @@ func main() {
 	}
 
 	slog.Info("server stopped")
+}
+
+func initLogger() {
+	opts := &slog.HandlerOptions{Level: slog.LevelInfo}
+	handler := slog.NewJSONHandler(os.Stdout, opts)
+	slog.SetDefault(slog.New(handler))
 }

@@ -1,62 +1,29 @@
-# URL Shortener Service (тестовое задание стажировка Ozon Банк)
+# Сервис сокращения ссылок (тестовое задание стажировка Ozon Банк)
 
-High‑performance URL shortener with Redis‑based caching and rate limiting and bloom-filter, PostgreSQL persistence, and Prometheus metrics.
+url-shortener — сервис сокращения ссылок с выбором базы данных (memory|postgres) кэшированием Redis, rate limiting и фильтром Блума.
 
-## Features
+## Быстрый старт
 
-- Shorten long URLs with auto‑generated or custom alias (exactly 10 characters, allowed symbols: `0-9A-Za-z_`).
-- Optional TTL (time‑to‑live) for short links.
-- Redirect to original URL with HTTP 301 (permanent redirect).
-- **Redis** for caching and token‑bucket rate limiting (sliding window with Lua script).
-- **PostgreSQL** as primary storage with automatic migrations.
-- Bloom filter to quickly reject non‑existent short codes.
-- Prometheus metrics (`/metrics` endpoint).
-- Graceful shutdown and structured logging (`slog`).
-- Integration tests with `testcontainers` (PostgreSQL, Redis).
-- Makefile for common tasks.
-
-## Architecture
-
-
-
-## Technology Stack
-
-| Component       | Technology                                                                 |
-|-----------------|----------------------------------------------------------------------------|
-| Language        | Go 1.25                                                                    |
-| Web framework   | Gin                                                                         |
-| Database        | PostgreSQL 16+ (with `uuid-ossp` extension)                                |
-| Cache & Limiter | Redis 7+ (go‑redis/v9)                                                     |
-| Bloom filter    | `bits-and-blooms/bloom/v3`                                                 |
-| Migrations      | `golang-migrate/migrate/v4`                                                |
-| Metrics         | Prometheus client (`prometheus/client_golang`)                             |
-| Testing         | `testify`, `testcontainers`, `gomock`                                      |
-| Logging         | `log/slog` (JSON output)                                                   |
-
-## Getting Started
-
-### Prerequisites
+### Требования
 
 - Go 1.22+
-- Docker & Docker Compose (for PostgreSQL, Redis and integration tests)
+- Docker и Docker Compose (для PostgreSQL, Redis и интеграционных тестов)
 
-### Installation
+### Установка
 
 ```bash
 git clone https://github.com/AlexSamarskii/URL-shortener.git
 cd URL-shortener
-make run
 ```
+### Конфигурация
 
-### Configuration
-
-- All settings are controlled via .env variables.
+- Все настройки задаются через переменные окружения (файл .env).
 ```bash
 PORT=8080
 ENABLE_METRICS=true
 DOMAIN=http://localhost:8080
 SHORT_CODE_LENGTH=10
-STORAGE_TYPE=postgres # choose storage type (postgres|memory)
+STORAGE_TYPE=postgres # выбор типа хранилища (postgres|memory)
 POSTGRES_HOST=postgres
 POSTGRES_PORT=5432
 POSTGRES_USER=shortener
@@ -80,53 +47,52 @@ BLOOM_N=1000000
 BLOOM_P=0.001
 ```
 
-# Run service
+# Запуск сервиса
 
 ```bash
 make run
 ```
-### Running with Docker Compose
+### Запуск с Docker Compose
 ```bash
 docker-compose up -d --build
 ```
-
 
 ## API Endpoints
 
 ### POST /shorten
 
-Shortens an original URL.
+Сокращает оригинальный URL.
 
-#### Request body (application/json)
+**Тело запроса (application/json)**
 
-| Field        | Type    | Required | Description                                      |
-|--------------|---------|----------|--------------------------------------------------|
-| `url`        | string  | yes      | Original URL (http or https scheme)             |
-| `expires_in` | integer | no       | TTL in seconds (positive integer)               |
-| `alias`      | string  | no       | Custom short code (exactly 10 characters, allowed: `0-9A-Za-z_`) |
+| Поле         | Тип     | Обязательное | Описание                                                       |
+|--------------|---------|--------------|----------------------------------------------------------------|
+| `url`        | string  | да           | Оригинальный URL (схема http или https)                        |
+| `expires_in` | integer | нет          | Время жизни в секундах (int опционально)                   |
+| `alias`      | string  | нет          | Пользовательский короткий код (опционально ровно 10 символов, разрешены: `0-9A-Za-z_`) |
 
-#### Response (200 OK)
+**Ответ (200 OK)**
 
-| Field         | Type   | Description                                   |
-|---------------|--------|-----------------------------------------------|
-| `short_code`  | string | Generated or provided short code              |
-| `short_url`   | string | Full short URL (domain + `/` + code)          |
-| `expires_at`  | string | ISO8601 timestamp or `null` (if no TTL)       |
+| Поле         | Тип    | Описание                                           |
+|--------------|--------|----------------------------------------------------|
+| `short_code` | string | Сгенерированный или переданный короткий код        |
+| `short_url`  | string | Полный короткий URL (домен + `/` + код)            |
+| `expires_at` | string | ISO8601 timestamp или `null` (если без TTL)        |
 
-#### Error responses
+**Коды ошибок**
 
-| HTTP status | Description                        |
+| HTTP статус | Описание                           |
 |-------------|------------------------------------|
-| 400         | Invalid URL or alias format        |
-| 409         | Alias already exists               |
-| 500         | Internal server error              |
+| 400         | Некорректный URL или формат алиаса |
+| 409         | Алиас уже существует               |
+| 500         | Внутренняя ошибка сервера          |
 
-Example:
+**Пример**
 
 ```bash
 curl -X POST http://localhost:8080/shorten \
   -H "Content-Type: application/json" \
-  -d '{"url":"https://career.ozon.ru/fintech/vacancy?id=131698788"}'
+  -d '{"url":"https://career.ozon.ru/fintech/vacancy?id=131698788\u0026abt_att=1"}'
 ```
 
 Response:
@@ -138,55 +104,62 @@ Response:
 }
 ```
 
-### GET /{short_code}
+## GET /{short_code}
 
-Redirects to the original URL.
+Возвращает оригинальный URL.
 
-#### Response
+**Ответ (200 OK)**
 
-| HTTP status | Description                         |
-|-------------|-------------------------------------|
-| 301         | Permanent redirect to original URL  |
-| 404         | Short code not found                |
-| 410         | URL expired (Gone)                  |
-| 500         | Internal server error               |
+| HTTP статус | Описание                         |
+|-------------|----------------------------------|     
+| 404         | Короткий код не найден           |
+| 410         | Срок действия ссылки истёк (Gone)|
+| 500         | Внутренняя ошибка сервера        |
 
-#### Example
+**Пример**
 
 ```bash
 curl -v http://localhost:8080/aB3dE5fG7h
 ```
+response:
+```json
+{"original_url":"https://career.ozon.ru/fintech/vacancy?id=131698788"}
+```
 
-## Metrics
+## Метрики
 
-When `ENABLE_METRICS=true`, the service exposes Prometheus metrics at the `/metrics` endpoint.
+Если `ENABLE_METRICS=true`, сервис предоставляет метрики Prometheus по эндпоинту `/metrics`.
 
-### Available metrics
+### Доступные метрики
 
-| Metric name                         | Type      | Labels                         | Description                                      |
-|-------------------------------------|-----------|--------------------------------|--------------------------------------------------|
-| `http_requests_total`               | Counter   | `method`, `endpoint`, `status` | Total number of HTTP requests processed         |
-| `redirect_latency_seconds`          | Histogram | `cache_hit`                    | Duration of redirect requests (seconds). `cache_hit` is `"true"` or `"false"`. |
-| `rate_limit_blocked_total`          | Counter   | `identifier`                   | Number of requests rejected by the rate limiter. `identifier` is usually the client IP. |
+| Имя метрики                        | Тип       | Метки                          | Описание                                                       |
+|------------------------------------|-----------|--------------------------------|----------------------------------------------------------------|
+| `http_requests_total`              | Counter   | `method`, `endpoint`, `status` | Общее количество обработанных HTTP-запросов                    |
+| `redirect_latency_seconds`         | Histogram | `cache_hit`                    | Длительность запросов перенаправления (в секундах). `cache_hit` = `"true"` или `"false"`. |
+| `rate_limit_blocked_total`         | Counter   | `identifier`                   | Количество запросов, отклонённых ограничителем частоты. `identifier` – IP клиента. |
+| `http_request_duration_seconds`   |  Histogram  |         `method`, `endpoint`  | Продолжительность одного http запроса        |   
 
-
+### Пример
 
 ```bash
 curl http://localhost:8080/metrics
 ```
 
-## Testing
+## Тестирование
 
-Unit Tests with Coverage
+**Unit-тесты с покрытием**
+
+процент покрытия 90.4%
+
 ```bash
 make test-coverage
 ```
-All Tests (unit + integration)
+Все тесты (unit + integration)
 ```bash
 make test-all
 ```
 
-## Project Structure
+## Структура проекта
 ```text
 ├── cmd/
 │   ├── migrate/           
@@ -220,15 +193,15 @@ make test-all
 ```
 
 ## Development
-- Generate Mocks
+- Генерация моков
 ```bash
 make generate
 ```
-- Lint
+- Линтер
 ```bash
 make lint  
 ```
-- Clean
+- Очистка
 ```bash
 make clean
 ```
@@ -236,10 +209,11 @@ make clean
 ```bash
 make swagger
 ```
----
-### Performance Notes
-- **Redis rate limiter** uses a Lua script for atomic token bucket limiting, suitable for high concurrency.
-- **Bloom** filter reduces unnecessary repository lookups for non‑existent short codes.
-- **Redis cache** stores recently accessed URLs with TTL derived from the original link’s expiration.
-- PostgreSQL uses **indexes** on short_code and original_url for fast lookups.
 
+---
+## Замечания по производительности
+
+- **Redis rate limiter** использует Lua-скрипт для атомарного ограничения token bucket, подходит для высоких нагрузок.
+- **Фильтр Блума** снижает количество обращений в репозиторий для несуществующих коротких кодов.
+- **Кэш Redis** хранит недавно запрошенные URL с TTL, производным от срока жизни оригинальной ссылки.
+- **PostgreSQL** использует индексы на `short_code` и `original_url` для быстрого поиска.

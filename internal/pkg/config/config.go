@@ -46,12 +46,14 @@ type RedisConfig struct {
 }
 
 type RateLimiterConfig struct {
+	Enabled     bool          `yaml:"enabled"`
 	MaxRequests int           `yaml:"maxRequests"`
 	Window      time.Duration `yaml:"window"`
 	ScriptPath  string        `yaml:"scriptPath"`
 }
 
 type BloomConfig struct {
+	EnableBloomFilter bool    `yaml:"enableBloomFilter"`
 	ExpectedItems     uint    `yaml:"expectedItems"`
 	FalsePositiveProb float64 `yaml:"falsePositiveProb"`
 }
@@ -71,10 +73,7 @@ type Config struct {
 }
 
 func Load() (*Config, error) {
-	if err := godotenv.Load(); err != nil {
-		return nil, fmt.Errorf("error loading .env: %w", err)
-	}
-
+	_ = godotenv.Load()
 	yamlFile, err := os.ReadFile("configs/config.yaml")
 	if err != nil {
 		return nil, fmt.Errorf("failed to read config file: %w", err)
