@@ -5,7 +5,7 @@ import (
 	"sync"
 	"time"
 
-	limiter "url_shortener/internal/utils/rate_limiter"
+	limiter "github.com/AlexSamarskii/URL-shortener/internal/utils/rate_limiter"
 )
 
 const cleanupPeriod = 5 * time.Minute

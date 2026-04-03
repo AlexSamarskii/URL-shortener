@@ -5,7 +5,7 @@ import (
 	"os"
 	"time"
 
-	limiter "url_shortener/internal/utils/rate_limiter"
+	limiter "github.com/AlexSamarskii/URL-shortener/internal/utils/rate_limiter"
 
 	"github.com/redis/go-redis/v9"
 )

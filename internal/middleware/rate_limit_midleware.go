@@ -3,8 +3,8 @@ package middleware
 import (
 	"net/http"
 
-	"url_shortener/internal/pkg/metrics"
-	limiter "url_shortener/internal/utils/rate_limiter"
+	"github.com/AlexSamarskii/URL-shortener/internal/pkg/metrics"
+	limiter "github.com/AlexSamarskii/URL-shortener/internal/utils/rate_limiter"
 
 	"github.com/gin-gonic/gin"
 )

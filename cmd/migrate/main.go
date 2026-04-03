@@ -8,7 +8,7 @@ import (
 	_ "github.com/golang-migrate/migrate/v4/database/postgres"
 	_ "github.com/golang-migrate/migrate/v4/source/file"
 
-	"url_shortener/internal/pkg/config"
+	"github.com/AlexSamarskii/URL-shortener/internal/pkg/config"
 )
 
 func main() {

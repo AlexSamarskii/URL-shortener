@@ -7,7 +7,7 @@ import (
 
 	"github.com/redis/go-redis/v9"
 
-	"url_shortener/internal/entity"
+	"github.com/AlexSamarskii/URL-shortener/internal/entity"
 )
 
 type Cache struct {

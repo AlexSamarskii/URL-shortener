@@ -13,10 +13,10 @@ import (
 	"github.com/stretchr/testify/require"
 	"go.uber.org/mock/gomock"
 
-	"url_shortener/internal/entity"
-	"url_shortener/internal/entity/dto"
-	"url_shortener/internal/usecase"
-	"url_shortener/internal/usecase/mocks"
+	"github.com/AlexSamarskii/URL-shortener/internal/entity"
+	"github.com/AlexSamarskii/URL-shortener/internal/entity/dto"
+	"github.com/AlexSamarskii/URL-shortener/internal/usecase"
+	"github.com/AlexSamarskii/URL-shortener/internal/usecase/mocks"
 )
 
 func TestHandler_Shorten_Success(t *testing.T) {

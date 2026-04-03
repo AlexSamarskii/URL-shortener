@@ -10,10 +10,10 @@ import (
 	"github.com/stretchr/testify/require"
 	"go.uber.org/mock/gomock"
 
-	"url_shortener/internal/entity"
-	"url_shortener/internal/repository/mocks"
-	bloommocks "url_shortener/internal/utils/bloom/mocks"
-	cachemocks "url_shortener/internal/utils/cache/mocks"
+	"github.com/AlexSamarskii/URL-shortener/internal/entity"
+	"github.com/AlexSamarskii/URL-shortener/internal/repository/mocks"
+	bloommocks "github.com/AlexSamarskii/URL-shortener/internal/utils/bloom/mocks"
+	cachemocks "github.com/AlexSamarskii/URL-shortener/internal/utils/cache/mocks"
 )
 
 func TestShortenerService_Shorten_Success(t *testing.T) {

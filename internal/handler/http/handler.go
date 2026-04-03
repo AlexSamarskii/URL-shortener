@@ -5,10 +5,11 @@ import (
 	"strconv"
 	"time"
 
-	"url_shortener/internal/entity"
-	"url_shortener/internal/entity/dto"
-	"url_shortener/internal/pkg/metrics"
-	"url_shortener/internal/usecase"
+	"github.com/AlexSamarskii/URL-shortener/internal/entity/dto"
+	"github.com/AlexSamarskii/URL-shortener/internal/pkg/metrics"
+	"github.com/AlexSamarskii/URL-shortener/internal/usecase"
+
+	"github.com/AlexSamarskii/URL-shortener/internal/entity"
 
 	"github.com/gin-gonic/gin"
 )

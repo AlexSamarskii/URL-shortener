@@ -1,9 +1,9 @@
-APP_NAME = url-shortener
+APP_NAME = URL-shortener
 BINARY = bin/$(APP_NAME)
 GO = go
 GOFLAGS = -mod=readonly
 
-TEST_PACKAGES := $(shell go list ./internal/... | grep -v /mocks | grep -v /config$$ | grep -v /entity$$ | grep -v /dto$$ | grep -v /metrics$$)
+TEST_PACKAGES := $(shell go list ./internal/... | grep -v /mocks$$ | grep -v /config$$ | grep -v /entity$$ | grep -v /dto$$ | grep -v /metrics$$)
 
 .PHONY: build
 build:

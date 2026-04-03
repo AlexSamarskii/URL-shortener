@@ -4,8 +4,8 @@ import (
 	"context"
 	"sync"
 	"time"
-	"url_shortener/internal/entity"
-	"url_shortener/internal/utils/cache"
+	"github.com/AlexSamarskii/URL-shortener/internal/entity"
+	"github.com/AlexSamarskii/URL-shortener/internal/utils/cache"
 )
 
 const cleanupPeriod = 1 * time.Minute

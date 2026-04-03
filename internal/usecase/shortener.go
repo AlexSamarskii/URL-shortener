@@ -10,12 +10,12 @@ import (
 	"strings"
 	"time"
 
-	"url_shortener/internal/entity"
-	"url_shortener/internal/repository"
-	"url_shortener/internal/utils/bloom"
-	"url_shortener/internal/utils/cache"
+	"github.com/AlexSamarskii/URL-shortener/internal/entity"
+	"github.com/AlexSamarskii/URL-shortener/internal/repository"
+	"github.com/AlexSamarskii/URL-shortener/internal/utils/bloom"
+	"github.com/AlexSamarskii/URL-shortener/internal/utils/cache"
 
-	"url_shortener/internal/pkg/logger"
+	"github.com/AlexSamarskii/URL-shortener/internal/pkg/logger"
 
 	"github.com/google/uuid"
 )

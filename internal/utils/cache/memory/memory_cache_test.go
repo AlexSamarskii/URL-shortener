@@ -8,7 +8,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"url_shortener/internal/entity"
+	"github.com/AlexSamarskii/URL-shortener/internal/entity"
 )
 
 const testKey = "test-key"

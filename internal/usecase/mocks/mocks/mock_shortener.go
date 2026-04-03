@@ -12,7 +12,7 @@ package mocks
 import (
 	context "context"
 	reflect "reflect"
-	usecase "url_shortener/internal/usecase"
+	usecase "github.com/AlexSamarskii/URL-shortener/internal/usecase"
 
 	gomock "go.uber.org/mock/gomock"
 )

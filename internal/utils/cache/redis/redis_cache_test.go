@@ -13,7 +13,7 @@ import (
 	"github.com/testcontainers/testcontainers-go/modules/redis"
 	"github.com/testcontainers/testcontainers-go/wait"
 
-	"url_shortener/internal/entity"
+	"github.com/AlexSamarskii/URL-shortener/internal/entity"
 )
 
 func setupRedisContainer(t *testing.T) (*client.Client, func()) {

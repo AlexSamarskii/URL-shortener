@@ -2,7 +2,7 @@ package repository
 
 import (
 	"context"
-	"url_shortener/internal/entity"
+	"github.com/AlexSamarskii/URL-shortener/internal/entity"
 )
 
 type Repository interface {

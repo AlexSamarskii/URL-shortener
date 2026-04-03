@@ -9,7 +9,7 @@ import (
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
 
-	"url_shortener/internal/entity"
+	"github.com/AlexSamarskii/URL-shortener/internal/entity"
 )
 
 type Repository struct {
