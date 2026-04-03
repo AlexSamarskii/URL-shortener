@@ -6,7 +6,7 @@ http:
   enableMetrics: true
 
 storage:
-  type: "postgres"   # postgres или memory
+  type: "postgres"  
 
 shortener:
   domain: "http://localhost:8080"

@@ -21,7 +21,7 @@ func main() {
 		log.Fatal("Migrations are only supported for PostgreSQL storage")
 	}
 
-	migrationsPath := "file://migrations"
+	migrationsPath := "file:///migrations"
 	if envPath := os.Getenv("MIGRATIONS_PATH"); envPath != "" {
 		migrationsPath = "file://" + envPath
 	}

@@ -124,9 +124,10 @@ func Load() (*Config, error) {
 		cfg.Postgres.DBName = v
 	}
 	cfg.Postgres.DSN = fmt.Sprintf(
-		"host=%s port=%s user=%s password=%s dbname=%s sslmode=%s",
-		cfg.Postgres.Host, cfg.Postgres.Port, cfg.Postgres.User,
-		cfg.Postgres.Password, cfg.Postgres.DBName, cfg.Postgres.SSLMode,
+		"postgres://%s:%s@%s:%s/%s?sslmode=%s",
+		cfg.Postgres.User, cfg.Postgres.Password,
+		cfg.Postgres.Host, cfg.Postgres.Port,
+		cfg.Postgres.DBName, cfg.Postgres.SSLMode,
 	)
 
 	cfg.Redis.Password = os.Getenv("REDIS_PASSWORD")

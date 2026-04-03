@@ -6,34 +6,23 @@ import (
 	"time"
 
 	"url_shortener/internal/entity"
+	"url_shortener/internal/entity/dto"
 	"url_shortener/internal/pkg/metrics"
 	"url_shortener/internal/usecase"
 
 	"github.com/gin-gonic/gin"
 )
 
-type ShortenRequest struct {
-	URL       string  `json:"url" binding:"required"`
-	ExpiresIn *int    `json:"expires_in,omitempty"`
-	Alias     *string `json:"alias,omitempty"`
-}
-
-type ShortenResponse struct {
-	ShortCode string     `json:"short_code"`
-	ShortURL  string     `json:"short_url"`
-	ExpiresAt *time.Time `json:"expires_at,omitempty"`
-}
-
 type Handler struct {
-	service *usecase.ShortenerService
+	service usecase.Shortener
 }
 
-func NewHandler(service *usecase.ShortenerService) *Handler {
+func NewHandler(service usecase.Shortener) *Handler {
 	return &Handler{service: service}
 }
 
 func (h *Handler) Shorten(c *gin.Context) {
-	var req ShortenRequest
+	var req dto.ShortenRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		metrics.HTTPRequestsTotal.WithLabelValues("POST", "/shorten", "400").Inc()
@@ -62,7 +51,7 @@ func (h *Handler) Shorten(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, ShortenResponse{
+	c.JSON(http.StatusOK, dto.ShortenResponse{
 		ShortCode: resp.ShortCode,
 		ShortURL:  resp.ShortURL,
 		ExpiresAt: resp.ExpiresAt,

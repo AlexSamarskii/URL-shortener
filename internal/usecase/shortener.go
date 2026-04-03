@@ -15,6 +15,8 @@ import (
 	"url_shortener/internal/utils/bloom"
 	"url_shortener/internal/utils/cache"
 
+	"url_shortener/internal/pkg/logger"
+
 	"github.com/google/uuid"
 )
 
@@ -24,6 +26,11 @@ const (
 )
 
 const defaultCacheTTL = 24 * time.Hour
+
+type Shortener interface {
+	Shorten(ctx context.Context, req ShortenRequest) (*ShortenResponse, error)
+	GetOriginalURL(ctx context.Context, shortCode string) (string, error)
+}
 
 type ShortenerService struct {
 	repo         repository.Repository
@@ -124,7 +131,7 @@ func (s *ShortenerService) Shorten(ctx context.Context, req ShortenRequest) (*Sh
 
 	ttl := s.calcTTL(expiresAt)
 	if err := s.cache.Set(ctx, cacheKey(shortCode), req.URL, ttl); err != nil {
-		_ = err
+		logger.Log.Warn("failed to set cache", "short_code", shortCode, "error", err)
 	}
 
 	return &ShortenResponse{
@@ -143,9 +150,6 @@ func (s *ShortenerService) GetOriginalURL(ctx context.Context, shortCode string)
 	if err == nil {
 		return cachedURL, nil
 	}
-	if !errors.Is(err, entity.ErrNotFound) {
-		_ = err
-	}
 
 	urlRecord, err := s.repo.GetURLByShortCode(ctx, shortCode)
 	if err != nil {
@@ -161,7 +165,7 @@ func (s *ShortenerService) GetOriginalURL(ctx context.Context, shortCode string)
 
 	ttl := s.calcTTL(urlRecord.ExpiresAt)
 	if err := s.cache.Set(ctx, cacheKey(shortCode), urlRecord.OriginalURL, ttl); err != nil {
-		_ = err
+		logger.Log.Warn("failed to set cache after repo", "short_code", shortCode, "error", err)
 	}
 
 	return urlRecord.OriginalURL, nil
@@ -240,7 +244,5 @@ func validateURL(rawURL string) error {
 	if parsed.Host == "" {
 		return errors.New("missing host")
 	}
-	// Можно добавить блокировку локальных адресов
-	// if strings.HasPrefix(parsed.Host, "localhost")...
 	return nil
 }

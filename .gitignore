@@ -1,0 +1,6 @@
+go.sum
+.env
+coverage.out
+coverage.html
+url_shortener
+bin/
