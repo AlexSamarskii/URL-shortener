@@ -5,6 +5,7 @@ import (
 	"crypto/rand"
 	"errors"
 	"fmt"
+	"log/slog"
 	"math/big"
 	"net/url"
 	"strings"
@@ -15,14 +16,13 @@ import (
 	"github.com/AlexSamarskii/URL-shortener/internal/utils/bloom"
 	"github.com/AlexSamarskii/URL-shortener/internal/utils/cache"
 
-	"github.com/AlexSamarskii/URL-shortener/internal/pkg/logger"
-
 	"github.com/google/uuid"
 )
 
 const (
-	alphabet = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz_"
-	base     = len(alphabet)
+	alphabet    = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz_"
+	base        = len(alphabet)
+	maxAttempts = 10
 )
 
 const defaultCacheTTL = 24 * time.Hour
@@ -131,7 +131,7 @@ func (s *ShortenerService) Shorten(ctx context.Context, req ShortenRequest) (*Sh
 
 	ttl := s.calcTTL(expiresAt)
 	if err := s.cache.Set(ctx, cacheKey(shortCode), req.URL, ttl); err != nil {
-		logger.Log.Warn("failed to set cache", "short_code", shortCode, "error", err)
+		slog.Error("failed to set cache", "short_code", shortCode, "error", err)
 	}
 
 	return &ShortenResponse{
@@ -165,7 +165,7 @@ func (s *ShortenerService) GetOriginalURL(ctx context.Context, shortCode string)
 
 	ttl := s.calcTTL(urlRecord.ExpiresAt)
 	if err := s.cache.Set(ctx, cacheKey(shortCode), urlRecord.OriginalURL, ttl); err != nil {
-		logger.Log.Warn("failed to set cache after repo", "short_code", shortCode, "error", err)
+		slog.Error("failed to set cache after repo", "short_code", shortCode, "error", err)
 	}
 
 	return urlRecord.OriginalURL, nil
@@ -192,9 +192,11 @@ func (s *ShortenerService) validateAlias(ctx context.Context, alias string) erro
 }
 
 func (s *ShortenerService) generateUniqueCode(ctx context.Context) (string, error) {
-	const maxAttempts = 10
 	for i := 0; i < maxAttempts; i++ {
-		code := generateRandomCode(s.codeLength)
+		code, err := generateRandomCode(s.codeLength)
+		if err != nil {
+			return "", err
+		}
 		exists, err := s.repo.CheckShortCodeExists(ctx, code)
 		if err != nil {
 			return "", err
@@ -206,13 +208,16 @@ func (s *ShortenerService) generateUniqueCode(ctx context.Context) (string, erro
 	return "", entity.ErrGenerateCode
 }
 
-func generateRandomCode(length int) string {
+func generateRandomCode(length int) (string, error) {
 	b := make([]byte, length)
 	for i := range b {
-		n, _ := rand.Int(rand.Reader, big.NewInt(int64(base)))
+		n, err := rand.Int(rand.Reader, big.NewInt(int64(base)))
+		if err != nil {
+			return "", errors.New("failed to code url")
+		}
 		b[i] = alphabet[n.Int64()]
 	}
-	return string(b)
+	return string(b), nil
 }
 
 func generateID() string {

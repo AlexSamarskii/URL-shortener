@@ -19,7 +19,6 @@ import (
 	handler "github.com/AlexSamarskii/URL-shortener/internal/handler/http"
 	"github.com/AlexSamarskii/URL-shortener/internal/middleware"
 	"github.com/AlexSamarskii/URL-shortener/internal/pkg/config"
-	"github.com/AlexSamarskii/URL-shortener/internal/pkg/logger"
 	db "github.com/AlexSamarskii/URL-shortener/internal/pkg/postgres"
 	redisPkg "github.com/AlexSamarskii/URL-shortener/internal/pkg/redis"
 	"github.com/AlexSamarskii/URL-shortener/internal/repository"
@@ -38,7 +37,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	logger.Init()
+	initLogger()
 	slog.Info("starting url shortener",
 		"storage_type", cfg.Storage.Type,
 		"port", cfg.HTTP.Port,
@@ -108,6 +107,7 @@ func main() {
 
 	gin.SetMode(gin.ReleaseMode)
 	router := gin.New()
+	router.Use(middleware.MetricsMiddleware())
 	router.Use(gin.Recovery())
 	router.Use(middleware.RateLimitMiddleware(rateLimiter))
 
@@ -150,4 +150,10 @@ func main() {
 	}
 
 	slog.Info("server stopped")
+}
+
+func initLogger() {
+	opts := &slog.HandlerOptions{Level: slog.LevelInfo}
+	handler := slog.NewJSONHandler(os.Stdout, opts)
+	slog.SetDefault(slog.New(handler))
 }

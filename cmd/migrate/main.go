@@ -17,7 +17,7 @@ func main() {
 		log.Fatalf("Failed to load config: %v", err)
 	}
 
-	if cfg.Storage.Type == "memory" && cfg.Storage.Type != "postgres" {
+	if cfg.Storage.Type != "postgres" {
 		log.Println("Skipping migrations because non-postgres storage selected.")
 		return
 	}

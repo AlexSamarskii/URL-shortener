@@ -71,10 +71,7 @@ type Config struct {
 }
 
 func Load() (*Config, error) {
-	if err := godotenv.Load(); err != nil {
-		return nil, fmt.Errorf("error loading .env: %w", err)
-	}
-
+	_ = godotenv.Load()
 	yamlFile, err := os.ReadFile("configs/config.yaml")
 	if err != nil {
 		return nil, fmt.Errorf("failed to read config file: %w", err)
